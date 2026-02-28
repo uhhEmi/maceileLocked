@@ -18,6 +18,9 @@
     ],
     "client": [
       "net.uhhemi.maceilelocked.MaceileLockedClient"
+    ],
+    "modmenu": [
+      "net.uhhemi.maceilelocked.config.ModMenuIntegration"
     ]
   },
   "mixins": [

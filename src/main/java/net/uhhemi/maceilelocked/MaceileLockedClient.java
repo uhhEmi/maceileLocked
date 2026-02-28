@@ -14,6 +14,7 @@ import net.minecraft.item.Items;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.Vec3d;
+import net.uhhemi.maceilelocked.config.ModConfig;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -27,36 +28,14 @@ import java.util.UUID;
 
 public class MaceileLockedClient implements ClientModInitializer {
 
-    private static final int BOX_WIDTH = 20;
-    private static final int BOX_HEIGHT = 20;
-    private static final int BOX_COLOR_FILL_RED = 0x40FF0000;   // semi-transparent red
-    private static final int BOX_COLOR_BORDER_RED = 0xFFFF0000; // red border
-    private static final int BOX_COLOR_FILL_GREEN = 0x4000FF00;   // semi-transparent green
-    private static final int BOX_COLOR_BORDER_GREEN = 0xFF00FF00; // green border
-
-    /** Max angle (deg) from other player's look to you to count as "looking at you". */
-    private static final double LOCKED_LOOK_ANGLE_DEG = 20;
-    /** Cooldown between lock sounds (ticks) - unique per distance. */
-    private static final int LOCKED_COOLDOWN_CLOSE = 3;  // Close: fast pings (every 2 ticks)
-    private static final int LOCKED_COOLDOWN_MID = 10;    // Mid: medium pings (every 5 ticks)
-    private static final int LOCKED_COOLDOWN_FAR = 20;   // Far: slow pings (every 10 ticks)
-    private static final int PING_COOLDOWN = 40; // Global cooldown between any pings (in ticks)
-    /** Distance thresholds (blocks): close <= CLOSE_DIST, mid <= MID_DIST, far <= FAR_DIST. */
-    private static final double CLOSE_DIST = 50;
-    private static final double MID_DIST = 100;
-    private static final double FAR_DIST = 200;
-
     // Note block pitches: close=highest (2.0), mid=medium (1.0), far=low (0.25)
     private static final net.minecraft.registry.entry.RegistryEntry<SoundEvent> SOUND_NOTE = SoundEvents.BLOCK_NOTE_BLOCK_PLING;
-    private static final float PITCH_CLOSE = 2.0f;  // High frequency (fast beeps)
-    private static final float PITCH_MID = 1.0f;    // Medium frequency (normal beeps)
-    private static final float PITCH_FAR = 0.25f;   // Low frequency (slow beeps)
-    private static final float PITCH_CAMERA_CENTER = 2.4f; // Very high pitch for camera center detection
+
+    // ...existing code...
 
     private static final List<ScreenBox> boxesToRender = new ArrayList<>();
     private static final Map<UUID, Integer> playerCooldowns = new HashMap<>();
     private static int globalPingCooldown = 0; // Global cooldown for all pings
-    private static final float FOV_CIRCLE_DEGREES = 15f; // FOV circle radius in degrees for ping detection
     private static final Matrix4f projView = new Matrix4f();
     private static final Vector4f clipPos = new Vector4f();
     private static final Vector3f forward = new Vector3f(0, 0, -1);
@@ -132,7 +111,7 @@ public class MaceileLockedClient implements ClientModInitializer {
             // Calculate FOV circle radius in pixels
             float fovDegrees = (float) client.options.getFov().getValue().doubleValue();
             int screenHeight = drawContext.getScaledWindowHeight();
-            float fovRadiusPixels = (FOV_CIRCLE_DEGREES / fovDegrees) * (screenHeight / 2f);
+            float fovRadiusPixels = (ModConfig.fovCircleDegrees / fovDegrees) * (screenHeight / 2f);
 
             // Decrement global ping cooldown
             if (globalPingCooldown > 0) {
@@ -169,10 +148,10 @@ public class MaceileLockedClient implements ClientModInitializer {
                     // Play ping sound when box enters FOV circle and cooldown is ready (first-person only)
                     if (inFovCircle && !box.wasInFovCircle && globalPingCooldown <= 0 && box.pingCooldown <= 0) {
                         if (client.player != null) {
-                            client.player.playSound(SOUND_NOTE.value(), 1f, PITCH_CLOSE);
+                            client.player.playSound(SOUND_NOTE.value(), 1f, ModConfig.pitchClose);
                         }
-                        globalPingCooldown = PING_COOLDOWN;
-                        box.pingCooldown = 20; // Per-box cooldown to prevent excessive pings
+                        globalPingCooldown = ModConfig.pingCooldown;
+                        box.pingCooldown = ModConfig.fovCirclePingCooldown; // Per-box cooldown to prevent excessive pings
                     }
                     box.wasInFovCircle = inFovCircle;
                 } else {
@@ -183,19 +162,19 @@ public class MaceileLockedClient implements ClientModInitializer {
 
                 // Render with appropriate color based on camera center or FOV circle
                 if (cameraOver) {
-                    renderBoxWithColor(drawContext, boxX, boxY, box.w, box.h, BOX_COLOR_FILL_GREEN, BOX_COLOR_BORDER_GREEN);
+                    renderBoxWithColor(drawContext, boxX, boxY, box.w, box.h, ModConfig.boxColorFillGreen, ModConfig.boxColorBorderGreen);
                 } else if (inFovCircle) {
-                    renderBoxWithColor(drawContext, boxX, boxY, box.w, box.h, 0x4400FF00, 0xFF00FF00); // Green when in FOV circle
+                    renderBoxWithColor(drawContext, boxX, boxY, box.w, box.h, ModConfig.boxColorFillGreen, ModConfig.boxColorBorderGreen); // Green when in FOV circle
                 } else {
-                    renderBoxWithColor(drawContext, boxX, boxY, box.w, box.h, BOX_COLOR_FILL_RED, BOX_COLOR_BORDER_RED);
+                    renderBoxWithColor(drawContext, boxX, boxY, box.w, box.h, ModConfig.boxColorFillRed, ModConfig.boxColorBorderRed);
                 }
 
                 // Render player name above the box
-                if (client != null && client.textRenderer != null) {
+                if (ModConfig.showPlayerNames && client != null && client.textRenderer != null) {
                     int nameX = boxX + box.w / 2;
-                    int nameY = boxY - 10;
+                    int nameY = boxY + ModConfig.playerNameYOffset;
                     int textWidth = client.textRenderer.getWidth(box.playerName);
-                    drawContext.drawText(client.textRenderer, box.playerName, nameX - textWidth / 2, nameY, 0xFFFFFFFF, true);
+                    drawContext.drawText(client.textRenderer, box.playerName, nameX - textWidth / 2, nameY, ModConfig.playerNameColor, true);
                 }
             }
 
@@ -213,7 +192,7 @@ public class MaceileLockedClient implements ClientModInitializer {
         if (client.world == null || client.player == null) return;
 
         Vec3d localPos = new Vec3d(client.player.getX(), client.player.getY(), client.player.getZ());
-        double cosThreshold = Math.cos(Math.toRadians(LOCKED_LOOK_ANGLE_DEG));
+        double cosThreshold = Math.cos(Math.toRadians(ModConfig.lockedLookAngleDeg));
         for (PlayerEntity other : client.world.getPlayers()) {
             if (other == client.player) continue;
             if (!isElytraActive(other)) continue;
@@ -231,18 +210,18 @@ public class MaceileLockedClient implements ClientModInitializer {
 
             int currentCooldown = playerCooldowns.get(other.getUuid());
             if (currentCooldown <= 0) {
-                float pitch = dist <= CLOSE_DIST ? PITCH_CLOSE
-                        : dist <= MID_DIST ? PITCH_MID
-                        : dist <= FAR_DIST ? PITCH_FAR
+                float pitch = dist <= ModConfig.closeDist ? ModConfig.pitchClose
+                        : dist <= ModConfig.midDist ? ModConfig.pitchMid
+                        : dist <= ModConfig.farDist ? ModConfig.pitchFar
                         : 0f;
                 if (pitch > 0f) {
                     client.player.playSound(SOUND_NOTE.value(), 1f, pitch);
                 }
 
                 // Set appropriate cooldown based on distance
-                int cooldown = dist <= CLOSE_DIST ? LOCKED_COOLDOWN_CLOSE
-                        : dist <= MID_DIST ? LOCKED_COOLDOWN_MID
-                        : LOCKED_COOLDOWN_FAR;
+                int cooldown = dist <= ModConfig.closeDist ? ModConfig.lockedCooldownClose
+                        : dist <= ModConfig.midDist ? ModConfig.lockedCooldownMid
+                        : ModConfig.lockedCooldownFar;
                 playerCooldowns.put(other.getUuid(), cooldown);
             } else {
                 playerCooldowns.put(other.getUuid(), currentCooldown - 1);
@@ -266,8 +245,8 @@ public class MaceileLockedClient implements ClientModInitializer {
         double cz = entity.getZ();
         if (!worldToScreen(projView, cx, cy, cz, scaledWidth, scaledHeight, clipPos)) return;
 
-        int screenX = (int) (clipPos.x - BOX_WIDTH * 0.5f);
-        int screenY = (int) (clipPos.y - BOX_HEIGHT * 0.5f);
+        int screenX = (int) (clipPos.x - ModConfig.boxWidth * 0.5f);
+        int screenY = (int) (clipPos.y - ModConfig.boxHeight * 0.5f);
         String playerName = entity.getName().getString();
 
         // Find existing box for this entity or create new one
@@ -275,7 +254,7 @@ public class MaceileLockedClient implements ClientModInitializer {
                 .filter(b -> Math.abs(b.targetX - screenX) < 50 && Math.abs(b.targetY - screenY) < 50)
                 .findFirst()
                 .orElseGet(() -> {
-                    ScreenBox newBox = new ScreenBox(screenX, screenY, BOX_WIDTH, BOX_HEIGHT, playerName);
+                    ScreenBox newBox = new ScreenBox(screenX, screenY, ModConfig.boxWidth, ModConfig.boxHeight, playerName);
                     boxesToRender.add(newBox);
                     return newBox;
                 });
@@ -296,7 +275,7 @@ public class MaceileLockedClient implements ClientModInitializer {
     }
 
     private static void renderBox(net.minecraft.client.gui.DrawContext context, int screenX, int screenY, int w, int h) {
-        renderBoxWithColor(context, screenX, screenY, w, h, BOX_COLOR_FILL_RED, BOX_COLOR_BORDER_RED);
+        renderBoxWithColor(context, screenX, screenY, w, h, ModConfig.boxColorFillRed, ModConfig.boxColorBorderRed);
     }
 
     private static void renderBoxWithColor(net.minecraft.client.gui.DrawContext context, int screenX, int screenY, int w, int h, int fillColor, int borderColor) {
@@ -309,7 +288,7 @@ public class MaceileLockedClient implements ClientModInitializer {
     }
 
     private static void drawFovCircle(net.minecraft.client.gui.DrawContext context, int centerX, int centerY, int radius, boolean hasTargets) {
-        int color = hasTargets ? 0xAA00FF00 : 0xFFFF0000; // Green when targets detected, red otherwise
+        int color = hasTargets ? ModConfig.fovCircleColorGreen : ModConfig.fovCircleColorRed;
         // Draw circle with 1 pixel thickness by drawing single pixels
         for (int i = 0; i < 360; i += 2) {
             double angle = Math.toRadians(i);
@@ -367,11 +346,11 @@ public class MaceileLockedClient implements ClientModInitializer {
             // Play camera-center ping only once per entry and only if global cooldown allows
             if (isCameraCenter && !cameraHasBeenCentered && globalPingCooldown <= 0) {
                 if (client.player != null) {
-                    client.player.playSound(SOUND_NOTE.value(), 1f, PITCH_CAMERA_CENTER);
+                    client.player.playSound(SOUND_NOTE.value(), 1f, ModConfig.pitchCameraCenter);
                 }
                 cameraHasBeenCentered = true;
                 // set global cooldown so we don't spam pings
-                globalPingCooldown = PING_COOLDOWN;
+                globalPingCooldown = ModConfig.pingCooldown;
                 return true;
             } else if (!isCameraCenter && cameraHasBeenCentered) {
                 // Camera center left - reset flag for next time
