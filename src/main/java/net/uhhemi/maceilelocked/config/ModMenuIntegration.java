@@ -148,6 +148,16 @@ public class ModMenuIntegration implements ModMenuApi {
                 .setMax(90f)
                 .setSaveConsumer(v -> ModConfig.fovCircleDegrees = v)
                 .build());
+        fovCategory.addEntry(entryBuilder.startBooleanToggle(Text.literal("Draw FOV Circle"), ModConfig.drawFovCircle)
+                .setDefaultValue(false)
+                .setSaveConsumer(v -> ModConfig.drawFovCircle = v)
+                .build());
+        fovCategory.addEntry(entryBuilder.startIntField(Text.literal("FOV Circle Width (pixels)"), ModConfig.fovCircleWidth)
+                .setDefaultValue(1)
+                .setMin(1)
+                .setMax(10)
+                .setSaveConsumer(v -> ModConfig.fovCircleWidth = v)
+                .build());
 
         // Text Rendering Category
         ConfigCategory textCategory = builder.getOrCreateCategory(Text.literal("Text Settings"));

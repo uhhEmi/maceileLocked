@@ -181,12 +181,11 @@ public class MaceileLockedClient implements ClientModInitializer {
                 }
             }
 
-            // Draw FOV circle only in first-person - pass true if any boxes are detected in FOV circle
-            // TEMPORARILY DISABLED
-            // if (isFirstPerson) {
-            //     boolean hasTargetsInFov = boxesToRender.stream().anyMatch(box -> box.inFovCircle);
-            //     drawFovCircle(drawContext, screenCenterX, screenCenterY, (int) fovRadiusPixels, hasTargetsInFov);
-            // }
+            // Draw FOV circle only in first-person if enabled in config
+            if (isFirstPerson && ModConfig.drawFovCircle) {
+                boolean hasTargetsInFov = boxesToRender.stream().anyMatch(box -> box.inFovCircle);
+                drawFovCircle(drawContext, screenCenterX, screenCenterY, (int) fovRadiusPixels, hasTargetsInFov);
+            }
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> tickLockedMessages(client));
     }
@@ -293,13 +292,14 @@ public class MaceileLockedClient implements ClientModInitializer {
 
     private static void drawFovCircle(net.minecraft.client.gui.DrawContext context, int centerX, int centerY, int radius, boolean hasTargets) {
         int color = hasTargets ? ModConfig.fovCircleColorGreen : ModConfig.fovCircleColorRed;
-        // Draw circle with 1 pixel thickness by drawing single pixels
+        int width = ModConfig.fovCircleWidth;
+        // Draw circle with configurable thickness by drawing pixels
         for (int i = 0; i < 360; i += 2) {
             double angle = Math.toRadians(i);
             int x = centerX + (int) (radius * Math.cos(angle));
             int y = centerY + (int) (radius * Math.sin(angle));
-            // Draw single pixel point
-            context.fill(x, y, x + 1, y + 1, color);
+            // Draw pixel(s) with thickness
+            context.fill(x, y, x + width, y + width, color);
         }
     }
 

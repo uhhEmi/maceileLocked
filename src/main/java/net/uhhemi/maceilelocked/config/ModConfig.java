@@ -37,6 +37,8 @@ public class ModConfig {
 
     // FOV Circle settings
     public static float fovCircleDegrees = 20f; // FOV circle radius in degrees for ping detection
+    public static boolean drawFovCircle = false; // Whether to draw the FOV circle on screen
+    public static int fovCircleWidth = 1; // Width/thickness of the FOV circle line in pixels
     public static int fovCircleColorRed = 0xFFFF0000; // Red when no targets
     public static int fovCircleColorGreen = 0xAA00FF00; // Green when targets detected
 
