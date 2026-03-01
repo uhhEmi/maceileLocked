@@ -32,7 +32,6 @@ public class ModConfig {
     public static float pitchClose = 2.0f;  // High frequency (fast beeps)
     public static float pitchMid = 1.0f;    // Medium frequency (normal beeps)
     public static float pitchFar = 0.25f;   // Low frequency (slow beeps)
-    public static float pitchCameraCenter = 2.4f; // Very high pitch for camera center detection
 
     // FOV Circle settings
     public static float fovCircleDegrees = 15f; // FOV circle radius in degrees for ping detection

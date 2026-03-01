@@ -127,15 +127,9 @@ public class MaceileLockedClient implements ClientModInitializer {
                     box.pingCooldown--;
                 }
 
-                // Check if camera center is over this box
+                // Check if box is within FOV circle (only in first-person)
                 int boxX = box.getX();
                 int boxY = box.getY();
-                boolean cameraOver = screenCenterX >= boxX && screenCenterX <= boxX + box.w &&
-                                     screenCenterY >= boxY && screenCenterY <= boxY + box.h;
-                box.setCameraCenter(cameraOver);
-                box.checkCameraCenterTransition(client);
-
-                // Check if box is within FOV circle (only in first-person)
                 boolean inFovCircle = false;
                 if (isFirstPerson) {
                     float distToCenter = (float) Math.sqrt(
@@ -160,10 +154,8 @@ public class MaceileLockedClient implements ClientModInitializer {
                     box.wasInFovCircle = false;
                 }
 
-                // Render with appropriate color based on camera center or FOV circle
-                if (cameraOver) {
-                    renderBoxWithColor(drawContext, boxX, boxY, box.w, box.h, ModConfig.boxColorFillGreen, ModConfig.boxColorBorderGreen);
-                } else if (inFovCircle) {
+                // Render with appropriate color based on FOV circle
+                if (inFovCircle) {
                     renderBoxWithColor(drawContext, boxX, boxY, box.w, box.h, ModConfig.boxColorFillGreen, ModConfig.boxColorBorderGreen); // Green when in FOV circle
                 } else {
                     renderBoxWithColor(drawContext, boxX, boxY, box.w, box.h, ModConfig.boxColorFillRed, ModConfig.boxColorBorderRed);
@@ -179,10 +171,11 @@ public class MaceileLockedClient implements ClientModInitializer {
             }
 
             // Draw FOV circle only in first-person - pass true if any boxes are detected in FOV circle
-            if (isFirstPerson) {
-                boolean hasTargetsInFov = boxesToRender.stream().anyMatch(box -> box.inFovCircle);
-                drawFovCircle(drawContext, screenCenterX, screenCenterY, (int) fovRadiusPixels, hasTargetsInFov);
-            }
+            // TEMPORARILY DISABLED
+            // if (isFirstPerson) {
+            //     boolean hasTargetsInFov = boxesToRender.stream().anyMatch(box -> box.inFovCircle);
+            //     drawFovCircle(drawContext, screenCenterX, screenCenterY, (int) fovRadiusPixels, hasTargetsInFov);
+            // }
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> tickLockedMessages(client));
     }
@@ -304,8 +297,6 @@ public class MaceileLockedClient implements ClientModInitializer {
         float smoothX, smoothY;
         int w, h;
         String playerName = "";
-        boolean isCameraCenter = false;
-        boolean cameraHasBeenCentered = false;
         boolean wasInFovCircle = false;
         boolean inFovCircle = false;
         int pingCooldown = 0; // per-box cooldown to prevent repeated pings
@@ -334,30 +325,10 @@ public class MaceileLockedClient implements ClientModInitializer {
             this.smoothY += (targetY - smoothY) * interpolation;
         }
 
-        void setCameraCenter(boolean center) {
-            this.isCameraCenter = center;
-        }
-
         void setInFovCircle(boolean inCircle) {
             this.inFovCircle = inCircle;
         }
 
-        boolean checkCameraCenterTransition(MinecraftClient client) {
-            // Play camera-center ping only once per entry and only if global cooldown allows
-            if (isCameraCenter && !cameraHasBeenCentered && globalPingCooldown <= 0) {
-                if (client.player != null) {
-                    client.player.playSound(SOUND_NOTE.value(), 1f, ModConfig.pitchCameraCenter);
-                }
-                cameraHasBeenCentered = true;
-                // set global cooldown so we don't spam pings
-                globalPingCooldown = ModConfig.pingCooldown;
-                return true;
-            } else if (!isCameraCenter && cameraHasBeenCentered) {
-                // Camera center left - reset flag for next time
-                cameraHasBeenCentered = false;
-            }
-            return false;
-        }
 
         int getX() {
             return Math.round(smoothX);

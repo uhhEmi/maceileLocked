@@ -98,6 +98,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 .setSaveConsumer(v -> ModConfig.fovCirclePingCooldown = v)
                 .build());
 
+
         // Sound Settings Category
         ConfigCategory soundCategory = builder.getOrCreateCategory(Text.literal("Sound Settings"));
         soundCategory.addEntry(entryBuilder.startFloatField(Text.literal("Close Pitch"), ModConfig.pitchClose)
@@ -117,12 +118,6 @@ public class ModMenuIntegration implements ModMenuApi {
                 .setMin(0.1f)
                 .setMax(4.0f)
                 .setSaveConsumer(v -> ModConfig.pitchFar = v)
-                .build());
-        soundCategory.addEntry(entryBuilder.startFloatField(Text.literal("Camera Center Pitch"), ModConfig.pitchCameraCenter)
-                .setDefaultValue(2.4f)
-                .setMin(0.1f)
-                .setMax(4.0f)
-                .setSaveConsumer(v -> ModConfig.pitchCameraCenter = v)
                 .build());
 
         // FOV Circle Settings Category
