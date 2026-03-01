@@ -31,10 +31,14 @@ public class MaceileLockedClient implements ClientModInitializer {
     // Note block pitches: close=highest (2.0), mid=medium (1.0), far=low (0.25)
     private static final net.minecraft.registry.entry.RegistryEntry<SoundEvent> SOUND_NOTE = SoundEvents.BLOCK_NOTE_BLOCK_PLING;
 
+    // Bell sound for FOV circle pings
+    private static final net.minecraft.registry.entry.RegistryEntry<SoundEvent> SOUND_FOV_PING = SoundEvents.BLOCK_NOTE_BLOCK_BELL;
+
     // ...existing code...
 
     private static final List<ScreenBox> boxesToRender = new ArrayList<>();
     private static final Map<UUID, Integer> playerCooldowns = new HashMap<>();
+    private static final Map<UUID, Integer> fovPingCooldowns = new HashMap<>(); // Separate tracking for FOV pings
     private static int globalPingCooldown = 0; // Global cooldown for all pings
     private static final Matrix4f projView = new Matrix4f();
     private static final Vector4f clipPos = new Vector4f();
@@ -118,14 +122,19 @@ public class MaceileLockedClient implements ClientModInitializer {
                 globalPingCooldown--;
             }
 
+            // Decrement all FOV ping cooldowns
+            for (UUID uuid : new ArrayList<>(fovPingCooldowns.keySet())) {
+                int cooldown = fovPingCooldowns.get(uuid);
+                if (cooldown > 0) {
+                    fovPingCooldowns.put(uuid, cooldown - 1);
+                } else {
+                    fovPingCooldowns.remove(uuid);
+                }
+            }
+
             // Update smoothing and render all boxes
             for (ScreenBox box : boxesToRender) {
                 box.updateSmoothing(tickCounter);
-
-                // Decrement per-box ping cooldown
-                if (box.pingCooldown > 0) {
-                    box.pingCooldown--;
-                }
 
                 // Check if box is within FOV circle (only in first-person)
                 int boxX = box.getX();
@@ -140,12 +149,14 @@ public class MaceileLockedClient implements ClientModInitializer {
                     box.setInFovCircle(inFovCircle);
 
                     // Play ping sound when box enters FOV circle and cooldown is ready (first-person only)
-                    if (inFovCircle && !box.wasInFovCircle && globalPingCooldown <= 0 && box.pingCooldown <= 0) {
-                        if (client.player != null) {
-                            client.player.playSound(SOUND_NOTE.value(), 1f, ModConfig.pitchClose);
+                    if (inFovCircle && !box.wasInFovCircle && box.playerUUID != null) {
+                        int cooldown = fovPingCooldowns.getOrDefault(box.playerUUID, 0);
+                        if (cooldown <= 0) {
+                            if (client.player != null) {
+                                client.player.playSound(SOUND_FOV_PING.value(), 1f, ModConfig.pitchClose);
+                            }
+                            fovPingCooldowns.put(box.playerUUID, ModConfig.fovCirclePingCooldown);
                         }
-                        globalPingCooldown = ModConfig.pingCooldown;
-                        box.pingCooldown = ModConfig.fovCirclePingCooldown; // Per-box cooldown to prevent excessive pings
                     }
                     box.wasInFovCircle = inFovCircle;
                 } else {
@@ -247,7 +258,7 @@ public class MaceileLockedClient implements ClientModInitializer {
                 .filter(b -> Math.abs(b.targetX - screenX) < 50 && Math.abs(b.targetY - screenY) < 50)
                 .findFirst()
                 .orElseGet(() -> {
-                    ScreenBox newBox = new ScreenBox(screenX, screenY, ModConfig.boxWidth, ModConfig.boxHeight, playerName);
+                    ScreenBox newBox = new ScreenBox(screenX, screenY, ModConfig.boxWidth, ModConfig.boxHeight, playerName, entity.getUuid());
                     boxesToRender.add(newBox);
                     return newBox;
                 });
@@ -297,12 +308,12 @@ public class MaceileLockedClient implements ClientModInitializer {
         float smoothX, smoothY;
         int w, h;
         String playerName = "";
+        UUID playerUUID = null;
         boolean wasInFovCircle = false;
         boolean inFovCircle = false;
-        int pingCooldown = 0; // per-box cooldown to prevent repeated pings
         private static final float SMOOTHING_RATE = 0.15f; // Interpolation speed per tick
 
-        ScreenBox(int x, int y, int w, int h, String playerName) {
+        ScreenBox(int x, int y, int w, int h, String playerName, UUID playerUUID) {
             this.targetX = x;
             this.targetY = y;
             this.smoothX = x;
@@ -310,6 +321,7 @@ public class MaceileLockedClient implements ClientModInitializer {
             this.w = w;
             this.h = h;
             this.playerName = playerName;
+            this.playerUUID = playerUUID;
         }
 
         void update(int newX, int newY, String newName) {

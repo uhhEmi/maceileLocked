@@ -38,6 +38,26 @@ public class ModMenuIntegration implements ModMenuApi {
                 .setSaveConsumer(v -> ModConfig.boxHeight = v)
                 .build());
 
+        // Red box colors
+        boxCategory.addEntry(entryBuilder.startLongField(Text.literal("Red Fill Color (Hex ARGB)"), ModConfig.boxColorFillRed & 0xFFFFFFFFL)
+                .setDefaultValue(0x40FF0000L)
+                .setSaveConsumer(v -> ModConfig.boxColorFillRed = v.intValue())
+                .build());
+        boxCategory.addEntry(entryBuilder.startLongField(Text.literal("Red Border Color (Hex ARGB)"), ModConfig.boxColorBorderRed & 0xFFFFFFFFL)
+                .setDefaultValue(0xFFFF0000L)
+                .setSaveConsumer(v -> ModConfig.boxColorBorderRed = v.intValue())
+                .build());
+
+        // Green box colors
+        boxCategory.addEntry(entryBuilder.startLongField(Text.literal("Green Fill Color (Hex ARGB)"), ModConfig.boxColorFillGreen & 0xFFFFFFFFL)
+                .setDefaultValue(0x4000FF00L)
+                .setSaveConsumer(v -> ModConfig.boxColorFillGreen = v.intValue())
+                .build());
+        boxCategory.addEntry(entryBuilder.startLongField(Text.literal("Green Border Color (Hex ARGB)"), ModConfig.boxColorBorderGreen & 0xFFFFFFFFL)
+                .setDefaultValue(0xFF00FF00L)
+                .setSaveConsumer(v -> ModConfig.boxColorBorderGreen = v.intValue())
+                .build());
+
         // Detection Settings Category
         ConfigCategory detectionCategory = builder.getOrCreateCategory(Text.literal("Detection Settings"));
         detectionCategory.addEntry(entryBuilder.startDoubleField(Text.literal("Look Angle Threshold (degrees)"), ModConfig.lockedLookAngleDeg)
@@ -92,9 +112,9 @@ public class ModMenuIntegration implements ModMenuApi {
                 .setSaveConsumer(v -> ModConfig.pingCooldown = v)
                 .build());
         cooldownCategory.addEntry(entryBuilder.startIntField(Text.literal("FOV Ping Cooldown (ticks)"), ModConfig.fovCirclePingCooldown)
-                .setDefaultValue(20)
+                .setDefaultValue(100)
                 .setMin(1)
-                .setMax(100)
+                .setMax(200)
                 .setSaveConsumer(v -> ModConfig.fovCirclePingCooldown = v)
                 .build());
 
