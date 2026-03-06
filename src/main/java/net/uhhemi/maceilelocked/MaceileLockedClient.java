@@ -39,6 +39,7 @@ public class MaceileLockedClient implements ClientModInitializer {
     private static final List<ScreenBox> boxesToRender = new ArrayList<>();
     private static final Map<UUID, Integer> playerCooldowns = new HashMap<>();
     private static final Map<UUID, Integer> fovPingCooldowns = new HashMap<>(); // Separate tracking for FOV pings
+    private static final Map<UUID, Float> playerShieldDurability = new HashMap<>();
     private static int globalPingCooldown = 0; // Global cooldown for all pings
     private static final Matrix4f projView = new Matrix4f();
     private static final Vector4f clipPos = new Vector4f();
@@ -142,8 +143,8 @@ public class MaceileLockedClient implements ClientModInitializer {
                 boolean inFovCircle = false;
                 if (isFirstPerson) {
                     float distToCenter = (float) Math.sqrt(
-                        Math.pow(boxX + box.w / 2 - screenCenterX, 2) +
-                        Math.pow(boxY + box.h / 2 - screenCenterY, 2)
+                            Math.pow(boxX + box.w / 2 - screenCenterX, 2) +
+                                    Math.pow(boxY + box.h / 2 - screenCenterY, 2)
                     );
                     inFovCircle = distToCenter <= fovRadiusPixels;
                     box.setInFovCircle(inFovCircle);
@@ -198,9 +199,9 @@ public class MaceileLockedClient implements ClientModInitializer {
                     // Draw background (empty shield bar)
                     drawContext.fill(barX, barY, barX + ModConfig.sideBarWidth, barY + barHeight, ModConfig.shieldBarEmptyColor);
 
-                    // Draw filled portion based on shield durability (0-20 absorption)
-                    if (box.shieldDurability > 0) {
-                        int filledHeight = (int) (barHeight * (box.shieldDurability / 20f));
+                    // Draw filled portion based on stored shield durability (0-20 absorption)
+                    if (box.storedShieldDurability > 0) {
+                        int filledHeight = (int) (barHeight * (box.storedShieldDurability / 20f));
                         if (filledHeight > 0) {
                             drawContext.fill(barX, barY + barHeight - filledHeight, barX + ModConfig.sideBarWidth, barY + barHeight, ModConfig.shieldBarColor);
                         }
@@ -268,7 +269,7 @@ public class MaceileLockedClient implements ClientModInitializer {
 
         // Clean up cooldowns for players that are no longer in the world
         playerCooldowns.keySet().removeIf(uuid ->
-            client.world.getPlayers().stream().noneMatch(p -> p.getUuid().equals(uuid))
+                client.world.getPlayers().stream().noneMatch(p -> p.getUuid().equals(uuid))
         );
     }
 
@@ -336,7 +337,8 @@ public class MaceileLockedClient implements ClientModInitializer {
                 });
         box.update(screenX, screenY, playerName);
         box.setHealth(health, maxHealth);
-        box.setShieldDurability(shieldDurability);
+        // Fix: Pass both UUID and shield durability to the method
+        box.setShieldDurability(entity.getUuid(), shieldDurability);
     }
 
     /** Returns true if point is in front of camera; writes screen coords into out (x, y). */
@@ -389,6 +391,7 @@ public class MaceileLockedClient implements ClientModInitializer {
         float health = 0f;
         float maxHealth = 20f;
         float shieldDurability = 0f; // 0-20 (absorption is 0-20 health points)
+        float storedShieldDurability = 0f; // Persisted shield durability (doesn't reset on player switch)
         private static final float SMOOTHING_RATE = 0.15f; // Interpolation speed per tick
 
         ScreenBox(int x, int y, int w, int h, String playerName, UUID playerUUID) {
@@ -413,10 +416,19 @@ public class MaceileLockedClient implements ClientModInitializer {
             this.maxHealth = Math.max(1, maxHealth); // Ensure maxHealth is at least 1
         }
 
-        void setShieldDurability(float durability) {
-            this.shieldDurability = Math.max(0, Math.min(20, durability)); // Clamp 0-20
+        void setShieldDurability(UUID playerUUID, float durability) {
+            float clamped = Math.max(0, Math.min(durability, 20));
+            this.storedShieldDurability = clamped; // Store in the box instance
+            if (clamped > 0) {
+                playerShieldDurability.put(playerUUID, clamped);
+            } else {
+                playerShieldDurability.remove(playerUUID);
+            }
         }
 
+        public static float getStoredShieldDurability(UUID playerUUID) {
+            return playerShieldDurability.getOrDefault(playerUUID, 0f);
+        }
         void updateSmoothing(net.minecraft.client.render.RenderTickCounter tickCounter) {
             // Apply smoothing - interpolate toward target position
             float interpolation = SMOOTHING_RATE;
@@ -438,4 +450,3 @@ public class MaceileLockedClient implements ClientModInitializer {
         }
     }
 }
-
