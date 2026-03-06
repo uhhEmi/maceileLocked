@@ -172,6 +172,22 @@ public class MaceileLockedClient implements ClientModInitializer {
                     renderBoxWithColor(drawContext, boxX, boxY, box.w, box.h, ModConfig.boxColorFillRed, ModConfig.boxColorBorderRed);
                 }
 
+                // Render health bar on the left side of the box
+                if (ModConfig.showHealthBar && box.maxHealth > 0) {
+                    int barX = boxX - ModConfig.healthBarWidth - 2; // 2 pixels to the left of the box
+                    int barY = boxY;
+                    int barHeight = box.h;
+
+                    // Draw background (empty health bar)
+                    drawContext.fill(barX, barY, barX + ModConfig.healthBarWidth, barY + barHeight, ModConfig.healthBarEmptyColor);
+
+                    // Draw filled portion based on health (0-maxHealth)
+                    int filledHeight = (int) (barHeight * (box.health / box.maxHealth));
+                    if (filledHeight > 0) {
+                        drawContext.fill(barX, barY + barHeight - filledHeight, barX + ModConfig.healthBarWidth, barY + barHeight, ModConfig.healthBarColor);
+                    }
+                }
+
                 // Render player name above the box
                 if (ModConfig.showPlayerNames && client != null && client.textRenderer != null) {
                     int nameX = boxX + box.w / 2;
@@ -252,6 +268,15 @@ public class MaceileLockedClient implements ClientModInitializer {
         int screenY = (int) (clipPos.y - ModConfig.boxHeight * 0.5f);
         String playerName = entity.getName().getString();
 
+        // Get player health
+        float health = 0f;
+        float maxHealth = 20f;
+        if (entity instanceof PlayerEntity) {
+            PlayerEntity player = (PlayerEntity) entity;
+            health = player.getHealth();
+            maxHealth = player.getMaxHealth();
+        }
+
         // Find existing box for this entity or create new one
         ScreenBox box = boxesToRender.stream()
                 .filter(b -> Math.abs(b.targetX - screenX) < 50 && Math.abs(b.targetY - screenY) < 50)
@@ -262,6 +287,7 @@ public class MaceileLockedClient implements ClientModInitializer {
                     return newBox;
                 });
         box.update(screenX, screenY, playerName);
+        box.setHealth(health, maxHealth);
     }
 
     /** Returns true if point is in front of camera; writes screen coords into out (x, y). */
@@ -311,6 +337,8 @@ public class MaceileLockedClient implements ClientModInitializer {
         UUID playerUUID = null;
         boolean wasInFovCircle = false;
         boolean inFovCircle = false;
+        float health = 0f;
+        float maxHealth = 20f;
         private static final float SMOOTHING_RATE = 0.15f; // Interpolation speed per tick
 
         ScreenBox(int x, int y, int w, int h, String playerName, UUID playerUUID) {
@@ -328,6 +356,11 @@ public class MaceileLockedClient implements ClientModInitializer {
             this.targetX = newX;
             this.targetY = newY;
             this.playerName = newName;
+        }
+
+        void setHealth(float health, float maxHealth) {
+            this.health = Math.max(0, health);
+            this.maxHealth = Math.max(1, maxHealth); // Ensure maxHealth is at least 1
         }
 
         void updateSmoothing(net.minecraft.client.render.RenderTickCounter tickCounter) {

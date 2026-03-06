@@ -49,5 +49,11 @@ public class ModConfig {
     public static boolean showPlayerNames = true; // Show player names above boxes
     public static int playerNameColor = 0xFFFFFFFF; // White text color
     public static int playerNameYOffset = -10; // Y offset above the box
+
+    // Health bar rendering (on the left side of the box)
+    public static boolean showHealthBar = true; // Show health bar on the left
+    public static int healthBarWidth = 3; // Width of health bar in pixels
+    public static int healthBarColor = 0xFF00FF00; // Green for health
+    public static int healthBarEmptyColor = 0x40000000; // Dark background for depleted health
 }
 

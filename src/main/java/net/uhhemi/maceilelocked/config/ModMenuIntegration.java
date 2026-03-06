@@ -171,6 +171,16 @@ public class ModMenuIntegration implements ModMenuApi {
                 .setMax(50)
                 .setSaveConsumer(v -> ModConfig.playerNameYOffset = v)
                 .build());
+        textCategory.addEntry(entryBuilder.startBooleanToggle(Text.literal("Show Health Bar"), ModConfig.showHealthBar)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> ModConfig.showHealthBar = v)
+                .build());
+        textCategory.addEntry(entryBuilder.startIntField(Text.literal("Health Bar Width"), ModConfig.healthBarWidth)
+                .setDefaultValue(3)
+                .setMin(1)
+                .setMax(10)
+                .setSaveConsumer(v -> ModConfig.healthBarWidth = v)
+                .build());
 
         return builder.build();
     }
