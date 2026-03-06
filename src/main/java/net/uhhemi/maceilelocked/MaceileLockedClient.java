@@ -77,10 +77,10 @@ public class MaceileLockedClient implements ClientModInitializer {
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
             MinecraftClient client = MinecraftClient.getInstance();
             if (client.world == null || client.player == null) return;
-            // Only show teammate-style markers during elytra flight (elytra equipped + in air)
+            // Show boxes during elytra flight or if alwaysShowBoxes is enabled
             boolean elytraActive = client.player.getEquippedStack(EquipmentSlot.CHEST).isOf(Items.ELYTRA)
                     && !client.player.isOnGround();
-            if (!elytraActive) {
+            if (!elytraActive && !ModConfig.alwaysShowBoxes) {
                 boxesToRender.clear();
                 return;
             }
@@ -100,7 +100,7 @@ public class MaceileLockedClient implements ClientModInitializer {
             boolean elytraActive = client.player != null
                     && client.player.getEquippedStack(EquipmentSlot.CHEST).isOf(Items.ELYTRA)
                     && !client.player.isOnGround();
-            if (!elytraActive) {
+            if (!elytraActive && !ModConfig.alwaysShowBoxes) {
                 boxesToRender.clear();
                 return;
             }
@@ -172,19 +172,38 @@ public class MaceileLockedClient implements ClientModInitializer {
                     renderBoxWithColor(drawContext, boxX, boxY, box.w, box.h, ModConfig.boxColorFillRed, ModConfig.boxColorBorderRed);
                 }
 
-                // Render health bar on the left side of the box
-                if (ModConfig.showHealthBar && box.maxHealth > 0) {
-                    int barX = boxX - ModConfig.healthBarWidth - 2; // 2 pixels to the left of the box
+                // Render side bar (health or shield) on the left side of the box
+                if (ModConfig.sideBarMode == ModConfig.SideBarMode.HEALTH) {
+                    // Render health bar
+                    int barX = boxX - ModConfig.sideBarWidth - 2; // 2 pixels to the left of the box
                     int barY = boxY;
                     int barHeight = box.h;
 
                     // Draw background (empty health bar)
-                    drawContext.fill(barX, barY, barX + ModConfig.healthBarWidth, barY + barHeight, ModConfig.healthBarEmptyColor);
+                    drawContext.fill(barX, barY, barX + ModConfig.sideBarWidth, barY + barHeight, ModConfig.healthBarEmptyColor);
 
                     // Draw filled portion based on health (0-maxHealth)
-                    int filledHeight = (int) (barHeight * (box.health / box.maxHealth));
-                    if (filledHeight > 0) {
-                        drawContext.fill(barX, barY + barHeight - filledHeight, barX + ModConfig.healthBarWidth, barY + barHeight, ModConfig.healthBarColor);
+                    if (box.maxHealth > 0) {
+                        int filledHeight = (int) (barHeight * (box.health / box.maxHealth));
+                        if (filledHeight > 0) {
+                            drawContext.fill(barX, barY + barHeight - filledHeight, barX + ModConfig.sideBarWidth, barY + barHeight, ModConfig.healthBarColor);
+                        }
+                    }
+                } else if (ModConfig.sideBarMode == ModConfig.SideBarMode.SHIELD) {
+                    // Render shield bar
+                    int barX = boxX - ModConfig.sideBarWidth - 2; // 2 pixels to the left of the box
+                    int barY = boxY;
+                    int barHeight = box.h;
+
+                    // Draw background (empty shield bar)
+                    drawContext.fill(barX, barY, barX + ModConfig.sideBarWidth, barY + barHeight, ModConfig.shieldBarEmptyColor);
+
+                    // Draw filled portion based on shield durability (0-20 absorption)
+                    if (box.shieldDurability > 0) {
+                        int filledHeight = (int) (barHeight * (box.shieldDurability / 20f));
+                        if (filledHeight > 0) {
+                            drawContext.fill(barX, barY + barHeight - filledHeight, barX + ModConfig.sideBarWidth, barY + barHeight, ModConfig.shieldBarColor);
+                        }
                     }
                 }
 
@@ -271,10 +290,39 @@ public class MaceileLockedClient implements ClientModInitializer {
         // Get player health
         float health = 0f;
         float maxHealth = 20f;
+        float shieldDurability = 0f;
         if (entity instanceof PlayerEntity) {
             PlayerEntity player = (PlayerEntity) entity;
             health = player.getHealth();
             maxHealth = player.getMaxHealth();
+
+            // Get shield durability from either hand
+            net.minecraft.item.ItemStack shieldStack = null;
+
+            // Check off-hand first
+            net.minecraft.item.ItemStack offHandStack = player.getOffHandStack();
+            if (offHandStack.isOf(net.minecraft.item.Items.SHIELD)) {
+                shieldStack = offHandStack;
+            }
+
+            // If not in off-hand, check main hand
+            if (shieldStack == null) {
+                net.minecraft.item.ItemStack mainHandStack = player.getMainHandStack();
+                if (mainHandStack.isOf(net.minecraft.item.Items.SHIELD)) {
+                    shieldStack = mainHandStack;
+                }
+            }
+
+            // Calculate shield durability if a shield was found
+            if (shieldStack != null) {
+                // Shield durability: max is 336, so normalize to 0-20 range
+                int maxDurability = shieldStack.getMaxDamage();
+                int currentDamage = shieldStack.getDamage();
+                int currentDurability = maxDurability - currentDamage;
+                // Normalize to 0-20 scale
+                shieldDurability = (float) (currentDurability * 20.0 / maxDurability);
+                shieldDurability = Math.max(0, Math.min(20, shieldDurability)); // Clamp to 0-20
+            }
         }
 
         // Find existing box for this entity or create new one
@@ -288,6 +336,7 @@ public class MaceileLockedClient implements ClientModInitializer {
                 });
         box.update(screenX, screenY, playerName);
         box.setHealth(health, maxHealth);
+        box.setShieldDurability(shieldDurability);
     }
 
     /** Returns true if point is in front of camera; writes screen coords into out (x, y). */
@@ -339,6 +388,7 @@ public class MaceileLockedClient implements ClientModInitializer {
         boolean inFovCircle = false;
         float health = 0f;
         float maxHealth = 20f;
+        float shieldDurability = 0f; // 0-20 (absorption is 0-20 health points)
         private static final float SMOOTHING_RATE = 0.15f; // Interpolation speed per tick
 
         ScreenBox(int x, int y, int w, int h, String playerName, UUID playerUUID) {
@@ -361,6 +411,10 @@ public class MaceileLockedClient implements ClientModInitializer {
         void setHealth(float health, float maxHealth) {
             this.health = Math.max(0, health);
             this.maxHealth = Math.max(1, maxHealth); // Ensure maxHealth is at least 1
+        }
+
+        void setShieldDurability(float durability) {
+            this.shieldDurability = Math.max(0, Math.min(20, durability)); // Clamp 0-20
         }
 
         void updateSmoothing(net.minecraft.client.render.RenderTickCounter tickCounter) {

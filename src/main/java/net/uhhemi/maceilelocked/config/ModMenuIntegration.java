@@ -25,6 +25,10 @@ public class ModMenuIntegration implements ModMenuApi {
 
         // Box Rendering Category
         ConfigCategory boxCategory = builder.getOrCreateCategory(Text.literal("Box Rendering"));
+        boxCategory.addEntry(entryBuilder.startBooleanToggle(Text.literal("Always Show Boxes"), ModConfig.alwaysShowBoxes)
+                .setDefaultValue(false)
+                .setSaveConsumer(v -> ModConfig.alwaysShowBoxes = v)
+                .build());
         boxCategory.addEntry(entryBuilder.startIntField(Text.literal("Box Width"), ModConfig.boxWidth)
                 .setDefaultValue(20)
                 .setMin(5)
@@ -171,15 +175,25 @@ public class ModMenuIntegration implements ModMenuApi {
                 .setMax(50)
                 .setSaveConsumer(v -> ModConfig.playerNameYOffset = v)
                 .build());
-        textCategory.addEntry(entryBuilder.startBooleanToggle(Text.literal("Show Health Bar"), ModConfig.showHealthBar)
-                .setDefaultValue(true)
-                .setSaveConsumer(v -> ModConfig.showHealthBar = v)
+
+        // Side Bar Settings Category
+        ConfigCategory sideBarCategory = builder.getOrCreateCategory(Text.literal("Side Bar Settings"));
+        sideBarCategory.addEntry(entryBuilder.startSelector(Text.literal("Side Bar Display Mode"),
+                ModConfig.SideBarMode.values(),
+                ModConfig.sideBarMode)
+                .setSaveConsumer(v -> ModConfig.sideBarMode = v)
                 .build());
-        textCategory.addEntry(entryBuilder.startIntField(Text.literal("Health Bar Width"), ModConfig.healthBarWidth)
+        sideBarCategory.addEntry(entryBuilder.startIntField(Text.literal("Side Bar Width (pixels)"), ModConfig.sideBarWidth)
                 .setDefaultValue(3)
                 .setMin(1)
                 .setMax(10)
-                .setSaveConsumer(v -> ModConfig.healthBarWidth = v)
+                .setSaveConsumer(v -> ModConfig.sideBarWidth = v)
+                .build());
+        sideBarCategory.addEntry(entryBuilder.startIntField(Text.literal("Side Bar Height (pixels)"), ModConfig.sideBarHeight)
+                .setDefaultValue(30)
+                .setMin(10)
+                .setMax(100)
+                .setSaveConsumer(v -> ModConfig.sideBarHeight = v)
                 .build());
 
         return builder.build();

@@ -9,6 +9,7 @@ public class ModConfig {
     // Box rendering
     public static int boxWidth = 20;
     public static int boxHeight = 20;
+    public static boolean alwaysShowBoxes = false; // Show boxes always, not just in elytra flight mode
 
     // Box colors - separate ARGB values for more control
     public static int boxColorFillRed = 0x40FF0000;   // semi-transparent red
@@ -50,10 +51,29 @@ public class ModConfig {
     public static int playerNameColor = 0xFFFFFFFF; // White text color
     public static int playerNameYOffset = -10; // Y offset above the box
 
-    // Health bar rendering (on the left side of the box)
-    public static boolean showHealthBar = true; // Show health bar on the left
-    public static int healthBarWidth = 3; // Width of health bar in pixels
-    public static int healthBarColor = 0xFF00FF00; // Green for health
-    public static int healthBarEmptyColor = 0x40000000; // Dark background for depleted health
+    // Side bar settings (left side of box) - choose between health or shield
+    public enum SideBarMode {
+        NONE("None"),
+        HEALTH("Health"),
+        SHIELD("Shield");
+
+        public final String displayName;
+
+        SideBarMode(String displayName) {
+            this.displayName = displayName;
+        }
+    }
+
+    public static SideBarMode sideBarMode = SideBarMode.HEALTH; // Default to health bar
+    public static int sideBarWidth = 3; // Width of the side bar in pixels
+    public static int sideBarHeight = 30; // Height of the side bar in pixels
+    public static int healthBarColor = 0xFF00FF00; // Green for health (locked on color)
+    public static int healthBarOutlineColor = 0xFF00FF00; // Green outline
+    public static int healthBarEmptyColor = 0xFFFF0000; // Red background for depleted health (locked off color)
+    public static int healthBarEmptyOutlineColor = 0xFFFF0000; // Red outline
+    public static int shieldBarColor = 0xFF00FF00; // Green for shield (locked on color)
+    public static int shieldBarOutlineColor = 0xFF00FF00; // Green outline
+    public static int shieldBarEmptyColor = 0xFFFF0000; // Red background for empty shield (locked off color)
+    public static int shieldBarEmptyOutlineColor = 0xFFFF0000; // Red outline
 }
 
